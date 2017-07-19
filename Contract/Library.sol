@@ -37,6 +37,7 @@ contract BookLibrary {
 		uint returnDate; //timestamp
 		uint timesRented;
 		review[] reviews;
+		mapping (address => review) reviewInfo;
 	}
 
 	struct rentedBook{
@@ -48,14 +49,13 @@ contract BookLibrary {
 	struct User{
 		bytes32 name;
 		rentedBook[] rentedBooks;
+		mapping (bytes32 => rentedBook) rentedBookInfo;
 	}
 
 	bytes32[] bookList;
 
 	mapping (bytes32 => book) public bookInfo;
 	mapping (address => User) public userInfo;
-	mapping (bytes32 => rentedBook) public rentedBookInfo;
-	mapping (address => review) public reviewInfo;
 
 	function getCurrentBook(address user) constant returns(bytes32,uint[],uint[]){
 		uint[] rentArray;
@@ -76,16 +76,9 @@ contract BookLibrary {
 		return ("no book",rentArray,returnArray);
 	}
 
-	function bookInformation(bytes32 bookName) constant returns(bytes32, uint[],bytes32[],bytes32,uint[],uint[],uint){
+	function bookInformation(bytes32 bookName) constant returns(bytes32,bytes32,uint[],uint[]){
 		bytes32 writer = bookInfo[bookName].writer;
-		uint[] stars;
-		bytes32[] reviews;
-		for(uint i=0;i<bookInfo[bookName].reviews.length;i++){
-			uint star = bookInfo[bookName].reviews[i].stars;
-			bytes32 review = bookInfo[bookName].reviews[i].review;
-			stars[i] = star;
-			reviews[i] = review;
-		}
+		
 		bytes32 currentRent = userInfo[bookInfo[bookName].currentRenter].name;
 
 		uint[] rentArray;
@@ -98,13 +91,29 @@ contract BookLibrary {
 		returnArray.push(datetime.getMonth(bookInfo[bookName].returnDate));
 		returnArray.push(datetime.getYear(bookInfo[bookName].returnDate));
 
-		uint rentTimes = bookInfo[bookName].timesRented;
-
-		return (writer,stars,reviews,currentRent,rentArray,returnArray,rentTimes);
+		return (writer,currentRent,rentArray,returnArray);
 	}
 
-	function userInformation(address user) constant returns(bytes32, bytes32[],uint[],uint[],bytes32,uint[],uint[]){
+	function getBookReviews(bytes32 bookName) constant returns(uint[],bytes32[]){
+		uint[] stars;
+		bytes32[] reviews;
+
+		for(uint i=0;i<bookInfo[bookName].reviews.length;i++){
+			uint star = bookInfo[bookName].reviews[i].stars;
+			bytes32 review = bookInfo[bookName].reviews[i].review;
+			stars[i] = star;
+			reviews[i] = review;
+		}
+		return(stars,reviews);
+	}
+
+	function userInformation(address user) constant returns(bytes32,bytes32,uint[],uint[]){
 		bytes32 userName = userInfo[user].name;
+		var (cBook, bookrentDay,bookDue) = getCurrentBook(user);
+		return (userName,cBook,bookrentDay,bookDue);
+	}
+
+	function userRentedBooks(address user) constant returns(bytes32[],uint[],uint[]){
 		bytes32[] bookNames;
 		uint[] daysRentedStart;
 		uint[] daysRentedEnd;
@@ -116,8 +125,7 @@ contract BookLibrary {
 			bookNames[i] = bookName;
 			daysRentedStart[i] = daysRentStart;
 		}
-		var (cBook, bookrentDay,bookDue) = getCurrentBook(user);
-		return (userName,bookNames,daysRentedStart,daysRentedEnd,cBook,bookrentDay,bookDue);
+		return(bookNames,daysRentedStart,daysRentedEnd);
 	}
 
 	function addBook(bytes32 bookName,bytes32 bookWriter){
@@ -134,11 +142,12 @@ contract BookLibrary {
 		bookInfo[bookName].returnDate = retD;
 		bookInfo[bookName].timesRented += 1;
 		userInfo[user].rentedBookInfo[bookName].name = bookName;
+		userInfo[user].rentedBookInfo[bookName].rentedDay = rentD;
 	}
 
 	function returnBook(address user, bytes32 bookName, uint8 dayReturn,uint8 monthReturn, uint8 yearReturn){
-		userInfo[user].rentedBooks[bookName].rentedDay = bookInfo[bookName].rentDate;
-		userInfo[user].rentedBooks[bookName].returnedDay = datetime.toTimestamp(yearReturn,monthReturn,dayReturn);
+		userInfo[user].rentedBookInfo[bookName].rentedDay = bookInfo[bookName].rentDate;
+		userInfo[user].rentedBookInfo[bookName].returnedDay = datetime.toTimestamp(yearReturn,monthReturn,dayReturn);
 		bookInfo[bookName].rentDate = 0;
 		bookInfo[bookName].returnDate = 0;
 		bookInfo[bookName].currentRenter = 0x0000000000000000000000000000000000000000;
