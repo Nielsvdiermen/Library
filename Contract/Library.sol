@@ -107,6 +107,20 @@ contract BookLibrary {
 		return(stars,reviews);
 	}
 
+	function getBooklist() constant returns(bytes32[],bytes32[]){
+		bytes32[] bookL;
+		bytes32[] writerL;
+
+		for(uint i=0;i<bookList.length;i++){
+			bytes32 bname = bookList[i];
+			bytes32 bwriter = bookInfo[bname].writer;
+
+			bookL.push(bname);
+			writerL.push(bwriter);
+		}
+		return(bookL, writerL);
+	}
+
 	function userInformation(address user) constant returns(bytes32,bytes32,uint[],uint[]){
 		bytes32 userName = userInfo[user].name;
 		var (cBook, bookrentDay,bookDue) = getCurrentBook(user);
