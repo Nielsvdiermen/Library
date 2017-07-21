@@ -56,26 +56,21 @@ contract BookLibrary {
 	bytes32[] bookList;
 	bytes32[] userList;
 
-	mapping (bytes32 => book) bookInfo;
-	mapping (address => User) userInfo;
+	mapping (bytes32 => book) public bookInfo;
+	mapping (address => User) public userInfo;
 
-	function getCurrentBook(address user) internal constant returns(bytes32[],uint[],uint[]){
+	function getCurrentBooks(address user) internal constant returns(bytes32[],uint[],uint[]){
 	  bytes32[] memory bookNameArray = new bytes32[](5);
-		uint[] memory rentArray = new uint[](3);
-		uint[] memory returnArray = new uint[](3);
+		uint[] memory rentArray = new uint[](5);
+		uint[] memory returnArray = new uint[](5);
 		
 		for(uint i=0;i<bookList.length;i++){
 			if(bookInfo[bookList[i]].currentRenter == user){
-				rentArray[0] = (datetime.getDay(bookInfo[bookList[i]].rentDate));
-				rentArray[1] = (datetime.getMonth(bookInfo[bookList[i]].rentDate));
-				rentArray[2] = (datetime.getYear(bookInfo[bookList[i]].rentDate));
-				returnArray[0] = (datetime.getDay(bookInfo[bookList[i]].returnDate));
-				returnArray[1] = (datetime.getMonth(bookInfo[bookList[i]].returnDate));
-				returnArray[2] = (datetime.getYear(bookInfo[bookList[i]].returnDate));
-
 				for (uint j=0;j<5;j++){
 					if(bookNameArray[j] == ""){
 						bookNameArray[j] = bookList[i];
+						rentArray[j] = bookInfo[bookList[i]].rentDate;
+						returnArray[j] = bookInfo[bookList[i]].returnDate;
 						j = 5;
 					}
 				}
@@ -86,6 +81,7 @@ contract BookLibrary {
 	}
 
 	function bookInformation(bytes32 bookName) constant returns(bytes32,bytes32,uint[],uint[]){
+		if(bookInfo[bookName].name == "")throw;
 		bytes32 writer = bookInfo[bookName].writer;
 		
 		bytes32 currentRent = userInfo[bookInfo[bookName].currentRenter].name;
@@ -132,7 +128,7 @@ contract BookLibrary {
 
 	function userInformation(address user) constant returns(bytes32,bytes32[],uint[],uint[]){
 		bytes32 userName = userInfo[user].name;
-		var (cBook, bookrentDay,bookDue) = getCurrentBook(user);
+		var (cBook, bookrentDay,bookDue) = getCurrentBooks(user);
 		return (userName,cBook,bookrentDay,bookDue);
 	}
 
@@ -171,12 +167,14 @@ contract BookLibrary {
 	}
 
 	function addBook(bytes32 bookName,bytes32 bookWriter){
+		if(bookName == "" || bookWriter == "") throw;
 		bookList.push(bookName);
 		bookInfo[bookName].name = bookName;
 		bookInfo[bookName].writer = bookWriter;
 	}
 
 	function addUser(address user, bytes32 userName) {
+		if(userName == "") throw;
 		userList.push(userName);
 		userInfo[user].name = userName;
 	}
