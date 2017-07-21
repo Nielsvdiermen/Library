@@ -48,32 +48,41 @@ contract BookLibrary {
 
 	struct User{
 		bytes32 name;
+		uint8 currentBooks;
 		rentedBook[] rentedBooks;
 		mapping (bytes32 => rentedBook) rentedBookInfo;
 	}
 
 	bytes32[] bookList;
+	bytes32[] userList;
 
-	mapping (bytes32 => book) public bookInfo;
-	mapping (address => User) public userInfo;
+	mapping (bytes32 => book) bookInfo;
+	mapping (address => User) userInfo;
 
-	function getCurrentBook(address user) constant returns(bytes32,uint[],uint[]){
-		uint[] rentArray;
-		uint[] returnArray;
-
+	function getCurrentBook(address user) internal constant returns(bytes32[],uint[],uint[]){
+	  bytes32[] memory bookNameArray = new bytes32[](5);
+		uint[] memory rentArray = new uint[](3);
+		uint[] memory returnArray = new uint[](3);
+		
 		for(uint i=0;i<bookList.length;i++){
 			if(bookInfo[bookList[i]].currentRenter == user){
-				rentArray.push(datetime.getDay(bookInfo[bookList[i]].rentDate));
-				rentArray.push(datetime.getMonth(bookInfo[bookList[i]].rentDate));
-				rentArray.push(datetime.getYear(bookInfo[bookList[i]].rentDate));
-				returnArray.push(datetime.getDay(bookInfo[bookList[i]].returnDate));
-				returnArray.push(datetime.getMonth(bookInfo[bookList[i]].returnDate));
-				returnArray.push(datetime.getYear(bookInfo[bookList[i]].returnDate));
-				return (bookList[i],rentArray,returnArray);
+				rentArray[0] = (datetime.getDay(bookInfo[bookList[i]].rentDate));
+				rentArray[1] = (datetime.getMonth(bookInfo[bookList[i]].rentDate));
+				rentArray[2] = (datetime.getYear(bookInfo[bookList[i]].rentDate));
+				returnArray[0] = (datetime.getDay(bookInfo[bookList[i]].returnDate));
+				returnArray[1] = (datetime.getMonth(bookInfo[bookList[i]].returnDate));
+				returnArray[2] = (datetime.getYear(bookInfo[bookList[i]].returnDate));
+
+				for (uint j=0;j<5;j++){
+					if(bookNameArray[j] == ""){
+						bookNameArray[j] = bookList[i];
+						j = 5;
+					}
+				}
 			}
 		}
 
-		return ("no book",rentArray,returnArray);
+		return (bookNameArray,rentArray,returnArray);
 	}
 
 	function bookInformation(bytes32 bookName) constant returns(bytes32,bytes32,uint[],uint[]){
@@ -81,22 +90,22 @@ contract BookLibrary {
 		
 		bytes32 currentRent = userInfo[bookInfo[bookName].currentRenter].name;
 
-		uint[] rentArray;
-		rentArray.push(datetime.getDay(bookInfo[bookName].rentDate));
-		rentArray.push(datetime.getMonth(bookInfo[bookName].rentDate));
-		rentArray.push(datetime.getYear(bookInfo[bookName].rentDate));
+		uint[] memory rentArray = new uint[](3);
+		rentArray[0] = (datetime.getDay(bookInfo[bookName].rentDate));
+		rentArray[1] = (datetime.getMonth(bookInfo[bookName].rentDate));
+	    rentArray[2] = (datetime.getYear(bookInfo[bookName].rentDate));
 
-		uint[] returnArray;
-		returnArray.push(datetime.getDay(bookInfo[bookName].returnDate));
-		returnArray.push(datetime.getMonth(bookInfo[bookName].returnDate));
-		returnArray.push(datetime.getYear(bookInfo[bookName].returnDate));
+		uint[] memory returnArray = new uint[](3);
+		returnArray[0] = (datetime.getDay(bookInfo[bookName].returnDate));
+		returnArray[1] = (datetime.getMonth(bookInfo[bookName].returnDate));
+		returnArray[2] = (datetime.getYear(bookInfo[bookName].returnDate));
 
 		return (writer,currentRent,rentArray,returnArray);
 	}
 
 	function getBookReviews(bytes32 bookName) constant returns(uint[],bytes32[]){
-		uint[] stars;
-		bytes32[] reviews;
+		uint[] memory stars = new uint[](bookInfo[bookName].reviews.length);
+		bytes32[] memory reviews = new bytes32[](bookInfo[bookName].reviews.length);
 
 		for(uint i=0;i<bookInfo[bookName].reviews.length;i++){
 			uint star = bookInfo[bookName].reviews[i].stars;
@@ -108,29 +117,29 @@ contract BookLibrary {
 	}
 
 	function getBooklist() constant returns(bytes32[],bytes32[]){
-		bytes32[] bookL;
-		bytes32[] writerL;
+		bytes32[] memory bookL = new bytes32[](bookList.length);
+		bytes32[] memory writerL = new bytes32[](bookList.length);
 
 		for(uint i=0;i<bookList.length;i++){
 			bytes32 bname = bookList[i];
 			bytes32 bwriter = bookInfo[bname].writer;
 
-			bookL.push(bname);
-			writerL.push(bwriter);
+			bookL[i] = bname;
+			writerL[i] = bwriter;
 		}
 		return(bookL, writerL);
 	}
 
-	function userInformation(address user) constant returns(bytes32,bytes32,uint[],uint[]){
+	function userInformation(address user) constant returns(bytes32,bytes32[],uint[],uint[]){
 		bytes32 userName = userInfo[user].name;
 		var (cBook, bookrentDay,bookDue) = getCurrentBook(user);
 		return (userName,cBook,bookrentDay,bookDue);
 	}
 
 	function userRentedBooks(address user) constant returns(bytes32[],uint[],uint[]){
-		bytes32[] bookNames;
-		uint[] daysRentedStart;
-		uint[] daysRentedEnd;
+		bytes32[] memory bookNames = new bytes32[](userInfo[user].rentedBooks.length);
+		uint[] memory daysRentedStart = new uint[](userInfo[user].rentedBooks.length);
+		uint[] memory daysRentedEnd = new uint[](userInfo[user].rentedBooks.length);
 		for(uint i=0;i<userInfo[user].rentedBooks.length;i++){
 			bytes32 bookName = userInfo[user].rentedBooks[i].name;
 			uint daysRentStart = userInfo[user].rentedBooks[i].rentedDay;
@@ -138,8 +147,27 @@ contract BookLibrary {
 
 			bookNames[i] = bookName;
 			daysRentedStart[i] = daysRentStart;
+			daysRentedEnd[i] = daysRentEnd;
 		}
 		return(bookNames,daysRentedStart,daysRentedEnd);
+	}
+
+	function checkBookExists(bytes32 bookName) internal constant returns(bool){
+		if(bookInfo[bookName].name == bookName){
+			return true;
+		}
+		else{
+			return false;
+		}
+	}
+
+	function checkUserExists(address user) internal constant returns(bool){
+		if(userInfo[user].name == ""){
+			return false;
+		}
+		else{
+			return true;
+		}
 	}
 
 	function addBook(bytes32 bookName,bytes32 bookWriter){
@@ -148,7 +176,16 @@ contract BookLibrary {
 		bookInfo[bookName].writer = bookWriter;
 	}
 
-	function rentBook(address user, bytes32 bookName, uint8 dayRent, uint8 monthRent, uint8 yearRent, uint8 dayReturn,uint8 monthReturn, uint8 yearReturn){
+	function addUser(address user, bytes32 userName) {
+		userList.push(userName);
+		userInfo[user].name = userName;
+	}
+
+	function rentBook(address user, bytes32 bookName, uint8 dayRent, uint8 monthRent, uint16 yearRent, uint8 dayReturn,uint8 monthReturn, uint16 yearReturn){
+		if (checkBookExists(bookName) == false || checkUserExists(user) == false) throw;
+		if (bookInfo[bookName].currentRenter != 0x0000000000000000000000000000000000000000) throw;
+		if (userInfo[user].currentBooks >= 5) throw;
+
 		uint rentD = datetime.toTimestamp(yearRent,monthRent,dayRent);
 		uint retD = datetime.toTimestamp(yearReturn,monthReturn,dayReturn);
 		bookInfo[bookName].currentRenter = user;
@@ -157,17 +194,24 @@ contract BookLibrary {
 		bookInfo[bookName].timesRented += 1;
 		userInfo[user].rentedBookInfo[bookName].name = bookName;
 		userInfo[user].rentedBookInfo[bookName].rentedDay = rentD;
+		userInfo[user].currentBooks += 1;
 	}
 
-	function returnBook(address user, bytes32 bookName, uint8 dayReturn,uint8 monthReturn, uint8 yearReturn){
+	function returnBook(address user, bytes32 bookName, uint8 dayReturn,uint8 monthReturn, uint16 yearReturn){
+		if (checkBookExists(bookName) == false || checkUserExists(user) == false) throw;
+		if (bookInfo[bookName].currentRenter == 0x0000000000000000000000000000000000000000 || bookInfo[bookName].currentRenter != user) throw;
+
 		userInfo[user].rentedBookInfo[bookName].rentedDay = bookInfo[bookName].rentDate;
 		userInfo[user].rentedBookInfo[bookName].returnedDay = datetime.toTimestamp(yearReturn,monthReturn,dayReturn);
 		bookInfo[bookName].rentDate = 0;
 		bookInfo[bookName].returnDate = 0;
 		bookInfo[bookName].currentRenter = 0x0000000000000000000000000000000000000000;
+		userInfo[user].currentBooks -= 1;
 	}
 
 	function addReview(address user, bytes32 bookName,uint starsGiven, bytes32 reviewText){
+		if (checkBookExists(bookName) == false || checkUserExists(user) == false) throw;
+
 		bookInfo[bookName].reviewInfo[user].user = user;
 		bookInfo[bookName].reviewInfo[user].stars = starsGiven;
 		bookInfo[bookName].reviewInfo[user].review = reviewText;
