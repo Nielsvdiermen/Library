@@ -161,7 +161,7 @@ contract BookLibrary {
 		uint[] memory daysRentedEnd = new uint[](bookRentalsAmount);
 
 		for(uint i=0;i<bookRentals;i++){
-			if(rentedInfo[rentalIterator].user == user){
+			if(rentedInfo[i].user == user){
 				bookNames[rentalIterator] = rentedInfo[i].bookName;
 				daysRentedStart[rentalIterator] = rentedInfo[i].rentedDay;
 				daysRentedEnd[rentalIterator] = rentedInfo[i].returnedDay;
