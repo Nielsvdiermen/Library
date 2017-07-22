@@ -24,6 +24,7 @@ contract BookLibrary {
 	DateTimeAPI datetime = DateTimeAPI(0x2F99c39d0f8D199e0Ad2EEbDEf4b876a453911D4);
 
 	struct review{
+			bytes32 bookName;
 			address	user;
 			uint stars;
 			bytes32 review;
@@ -36,12 +37,11 @@ contract BookLibrary {
 		uint rentDate; //timestamp
 		uint returnDate; //timestamp
 		uint timesRented;
-		review[] reviews;
-		mapping (address => review) reviewInfo;
 	}
 
 	struct rentedBook{
-			bytes32 name;
+			bytes32 bookName;
+			address user;
 			uint rentedDay;
 			uint returnedDay;
 		}
@@ -49,15 +49,17 @@ contract BookLibrary {
 	struct User{
 		bytes32 name;
 		uint8 currentBooks;
-		rentedBook[] rentedBooks;
-		mapping (bytes32 => rentedBook) rentedBookInfo;
 	}
 
 	bytes32[] bookList;
 	bytes32[] userList;
+	uint reviewAmount;
+	uint bookRentals;
 
-	mapping (bytes32 => book) public bookInfo;
-	mapping (address => User) public userInfo;
+	mapping (bytes32 => book) bookInfo;
+	mapping (address => User) userInfo;
+	mapping (uint => review) reviewInfo;
+	mapping (uint => rentedBook) rentedInfo;
 
 	function getCurrentBooks(address user) internal constant returns(bytes32[],uint[],uint[]){
 	  bytes32[] memory bookNameArray = new bytes32[](5);
@@ -89,7 +91,7 @@ contract BookLibrary {
 		uint[] memory rentArray = new uint[](3);
 		rentArray[0] = (datetime.getDay(bookInfo[bookName].rentDate));
 		rentArray[1] = (datetime.getMonth(bookInfo[bookName].rentDate));
-	    rentArray[2] = (datetime.getYear(bookInfo[bookName].rentDate));
+	  rentArray[2] = (datetime.getYear(bookInfo[bookName].rentDate));
 
 		uint[] memory returnArray = new uint[](3);
 		returnArray[0] = (datetime.getDay(bookInfo[bookName].returnDate));
@@ -99,17 +101,29 @@ contract BookLibrary {
 		return (writer,currentRent,rentArray,returnArray);
 	}
 
-	function getBookReviews(bytes32 bookName) constant returns(uint[],bytes32[]){
-		uint[] memory stars = new uint[](bookInfo[bookName].reviews.length);
-		bytes32[] memory reviews = new bytes32[](bookInfo[bookName].reviews.length);
+	function getBookReviews(bytes32 bookName) constant returns(uint[],bytes32[],address[]){
+		uint reviewsBookAmount;
+		uint reviewIterator = 0;
 
-		for(uint i=0;i<bookInfo[bookName].reviews.length;i++){
-			uint star = bookInfo[bookName].reviews[i].stars;
-			bytes32 review = bookInfo[bookName].reviews[i].review;
-			stars[i] = star;
-			reviews[i] = review;
+		for(uint j=0;j<reviewAmount;j++){
+			if(reviewInfo[j].bookName == bookName){
+				reviewsBookAmount += 1;
+			}
 		}
-		return(stars,reviews);
+
+		uint[] memory stars = new uint[](reviewsBookAmount);
+		bytes32[] memory reviews = new bytes32[](reviewsBookAmount);
+		address[] memory users = new address[](reviewsBookAmount);
+
+		for(uint i=0;i<reviewAmount;i++){
+			if(reviewInfo[i].bookName == bookName){
+				users[reviewIterator] = reviewInfo[i].user;
+				stars[reviewIterator] = reviewInfo[i].stars;
+				reviews[reviewIterator] = reviewInfo[i].review;
+				reviewIterator += 1;
+			}
+		}
+		return(stars,reviews,users);
 	}
 
 	function getBooklist() constant returns(bytes32[],bytes32[]){
@@ -133,18 +147,29 @@ contract BookLibrary {
 	}
 
 	function userRentedBooks(address user) constant returns(bytes32[],uint[],uint[]){
-		bytes32[] memory bookNames = new bytes32[](userInfo[user].rentedBooks.length);
-		uint[] memory daysRentedStart = new uint[](userInfo[user].rentedBooks.length);
-		uint[] memory daysRentedEnd = new uint[](userInfo[user].rentedBooks.length);
-		for(uint i=0;i<userInfo[user].rentedBooks.length;i++){
-			bytes32 bookName = userInfo[user].rentedBooks[i].name;
-			uint daysRentStart = userInfo[user].rentedBooks[i].rentedDay;
-			uint daysRentEnd = userInfo[user].rentedBooks[i].returnedDay;
+		uint bookRentalsAmount;
+		uint rentalIterator = 0;
 
-			bookNames[i] = bookName;
-			daysRentedStart[i] = daysRentStart;
-			daysRentedEnd[i] = daysRentEnd;
+		for(uint j=0;j<bookRentals;j++){
+			if(rentedInfo[j].user == user){
+				bookRentalsAmount += 1;
+			}
 		}
+
+		bytes32[] memory bookNames = new bytes32[](bookRentalsAmount);
+		uint[] memory daysRentedStart = new uint[](bookRentalsAmount);
+		uint[] memory daysRentedEnd = new uint[](bookRentalsAmount);
+
+		for(uint i=0;i<bookRentals;i++){
+			if(rentedInfo[rentalIterator].user == user){
+				bookNames[rentalIterator] = rentedInfo[i].bookName;
+				daysRentedStart[rentalIterator] = rentedInfo[i].rentedDay;
+				daysRentedEnd[rentalIterator] = rentedInfo[i].returnedDay;
+
+				rentalIterator += 1;
+			}
+		}
+
 		return(bookNames,daysRentedStart,daysRentedEnd);
 	}
 
@@ -190,17 +215,18 @@ contract BookLibrary {
 		bookInfo[bookName].rentDate = rentD;
 		bookInfo[bookName].returnDate = retD;
 		bookInfo[bookName].timesRented += 1;
-		userInfo[user].rentedBookInfo[bookName].name = bookName;
-		userInfo[user].rentedBookInfo[bookName].rentedDay = rentD;
 		userInfo[user].currentBooks += 1;
 	}
 
 	function returnBook(address user, bytes32 bookName, uint8 dayReturn,uint8 monthReturn, uint16 yearReturn){
 		if (checkBookExists(bookName) == false || checkUserExists(user) == false) throw;
 		if (bookInfo[bookName].currentRenter == 0x0000000000000000000000000000000000000000 || bookInfo[bookName].currentRenter != user) throw;
+		rentedInfo[bookRentals].bookName = bookName;
+		rentedInfo[bookRentals].user = user;
+		rentedInfo[bookRentals].rentedDay = bookInfo[bookName].rentDate;
+		rentedInfo[bookRentals].returnedDay = datetime.toTimestamp(yearReturn,monthReturn,dayReturn);
+		bookRentals += 1;
 
-		userInfo[user].rentedBookInfo[bookName].rentedDay = bookInfo[bookName].rentDate;
-		userInfo[user].rentedBookInfo[bookName].returnedDay = datetime.toTimestamp(yearReturn,monthReturn,dayReturn);
 		bookInfo[bookName].rentDate = 0;
 		bookInfo[bookName].returnDate = 0;
 		bookInfo[bookName].currentRenter = 0x0000000000000000000000000000000000000000;
@@ -209,9 +235,10 @@ contract BookLibrary {
 
 	function addReview(address user, bytes32 bookName,uint starsGiven, bytes32 reviewText){
 		if (checkBookExists(bookName) == false || checkUserExists(user) == false) throw;
-
-		bookInfo[bookName].reviewInfo[user].user = user;
-		bookInfo[bookName].reviewInfo[user].stars = starsGiven;
-		bookInfo[bookName].reviewInfo[user].review = reviewText;
+		reviewInfo[reviewAmount].bookName = bookName;
+		reviewInfo[reviewAmount].user = user;
+		reviewInfo[reviewAmount].stars = starsGiven;
+		reviewInfo[reviewAmount].review = reviewText;
+		reviewAmount += 1;
 	}
 }
